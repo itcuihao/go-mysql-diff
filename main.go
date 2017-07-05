@@ -354,20 +354,6 @@ func isEqual(x, y []string) bool {
 	return true
 }
 
-func checkTableName(a, b []string) []string {
-	c := a[:0]
-	m := make(map[string]int)
-	for _, s := range a {
-		m[s] = 1
-	}
-
-	for _, s := range b {
-		if _, ok := m[s]; !ok {
-			c = append(c, s)
-		}
-	}
-	return c
-}
 func diffName(a, b []string) []string {
 	c := a[:0]
 	m := make(map[string]int)
