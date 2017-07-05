@@ -50,7 +50,7 @@ func Conn(dataSourceName string) *sql.DB {
 }
 
 func getSource(db string) (source string) {
-	// dataSourceName = "qdxg:123456@tcp(localhost:3306)/qdxg?charset=utf8"
+	// dataSourceName = "用户名:密码@tcp(localhost:3306)/数据库名称?charset=utf8"
 	source = dbConfig.Servers[db].User +
 		":" +
 		dbConfig.Servers[db].Password +
