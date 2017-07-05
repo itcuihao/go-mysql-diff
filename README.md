@@ -35,15 +35,15 @@ go run main.go
 
 ```
 // 定义一个日志
-	logFile, err := os.Create("diff.log")
-	defer logFile.Close()
-	if err != nil {
-		log.Fatalln("open file error !")
-	}
-	// 创建一个日志对象
-	dLog = log.New(logFile, "[Info]", log.LstdFlags|log.Lshortfile)
-	//配置一个日志格式的前缀
-	dLog.SetPrefix("[Info]")
-	//配置log的Flag参数
-	dLog.SetFlags(dLog.Flags() | log.LstdFlags)
+logFile, err := os.Create("diff.log")
+defer logFile.Close()
+if err != nil {
+	log.Fatalln("open file error !")
+}
+// 创建一个日志对象
+dLog = log.New(logFile, "[Info]", log.LstdFlags|log.Lshortfile)
+//配置一个日志格式的前缀
+dLog.SetPrefix("[Info]")
+//配置log的Flag参数
+dLog.SetFlags(dLog.Flags() | log.LstdFlags)
 ```
