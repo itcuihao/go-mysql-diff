@@ -47,7 +47,11 @@ dLog.SetPrefix("[Info]")
 //配置log的Flag参数
 dLog.SetFlags(dLog.Flags() | log.LstdFlags)
 ```
+
 ### 交叉编译适合不同系统
+
 Mac:`GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o diff_mac`
+
 Linux:`GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o diff_linux`
+
 Windows:`GOOS=windows GOARCH=amd64 go build -ldflags="-w -s" -o diff_win`
