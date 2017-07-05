@@ -1,0 +1,20 @@
+# schema with the same name servers 
+schemaname1 = "ch1"
+
+schemaname2 = "ch2"
+
+[servers]
+  # You can indent as you please. Tabs or spaces. TOML don't care.
+  [servers.1]
+  host = "127.0.0.1"
+  port = "3306"
+  user = "ch"
+  password = "123456"
+  name = "ch1"
+
+  [servers.2]
+  host = "127.0.0.1"
+  port = "3306"
+  user = "ch"
+  password = "123456"
+  name = "ch2"
