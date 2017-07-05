@@ -1,7 +1,7 @@
 # go-mysql-diff
 Compare two mysql database triggers, functions, tables, columns and indexing tools
 
-# 配置文件利用toml
+### 配置文件利用[toml](https://github.com/toml-lang/toml)
 格式如下：
 
 ```
@@ -31,7 +31,7 @@ schemaname2 = "ch2"
 
 go run main.go
 
-# log 日志输出到文件中，配置方法
+### log 日志输出到文件中，配置方法
 
 ```
 // 定义一个日志
