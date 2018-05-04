@@ -25,6 +25,14 @@ type database struct {
 	Name     string
 }
 
+type column struct {
+	Name       string
+	Type       string
+	IsNullable string
+	Default    string
+	After      string
+}
+
 var (
 	driverName string
 	dbConfig   tomlConfig
@@ -265,17 +273,37 @@ func ColumnDiff(db1, db2 *sql.DB, schema1, schema2 string, table []string) {
 		if err != nil {
 			dLog.Fatalln(err.Error())
 		}
-		if !isEqual(columnName1, columnName2) {
-			dt := diffName(columnName1, columnName2)
-			dLog.Printf("两个数据库%s表，有不同的列,共有%d个，分别是：%s", t, len(dt), dt)
+		if !columnIsEqual(columnName1, columnName2) {
+			// dt := diffName(columnName1, columnName2)
+			// dLog.Printf("两个数据库%s表，有不同的列,共有%d个，分别是：%s", t, len(dt), dt)
+			col1, col2 := columnDiff(columnName1, columnName2)
+
+			dLog.Printf("%s数据库%s表，列不相同", schema1, t)
+			for _, col := range col1 {
+				//
+				var after string
+				if col.After != "" {
+					after = fmt.Sprintf("AFTER %s", col.After)
+				}
+				dLog.Printf("ALTER TABLE %s ADD COLUMN %s %s %s", t, col.Name, col.Type, after)
+			}
+
+			dLog.Printf("%s数据库%s表，列不相同", schema2, t)
+			for _, col := range col2 {
+				var after string
+				if col.After != "" {
+					after = fmt.Sprintf("AFTER %s", col.After)
+				}
+				dLog.Printf("ALTER TABLE %s ADD COLUMN %s %s %s", t, col.Name, col.Type, after)
+			}
 		} else {
-			dLog.Printf("两个数据库%s表，列相同", t)
+			//dLog.Printf("两个数据库%s表，列相同", t)
 		}
 	}
 }
 
-func getColumnName(s *sql.DB, schema, table string) (ts []string, err error) {
-	stm, perr := s.Prepare("select COLUMN_NAME from information_schema.columns where TABLE_SCHEMA=? and TABLE_NAME=? order by COLUMN_NAME")
+func getColumnName(s *sql.DB, schema, table string) (ts []column, err error) {
+	stm, perr := s.Prepare("select COLUMN_NAME,column_type,column_type,is_nullable from information_schema.columns where TABLE_SCHEMA=? and TABLE_NAME=? order by ordinal_position asc")
 	if perr != nil {
 		err = perr
 		return
@@ -288,12 +316,33 @@ func getColumnName(s *sql.DB, schema, table string) (ts []string, err error) {
 	}
 	defer q.Close()
 
+	ts = make([]column, 0)
+
+	var after string
 	for q.Next() {
-		var name string
-		if err := q.Scan(&name); err != nil {
+		var column_name string
+		var column_type string
+		var column_default string
+		var is_nullable string
+
+		if err := q.Scan(&column_name, &column_type, &column_default, &is_nullable); err != nil {
 			log.Fatal(err)
 		}
-		ts = append(ts, name)
+
+		col := column{}
+		col.Name = column_name
+		col.Type = column_type
+		col.IsNullable = is_nullable
+		col.Default = column_default
+
+		if after == "" {
+			col.After = ""
+		} else {
+			col.After = after
+		}
+		after = col.Name
+
+		ts = append(ts, col)
 	}
 	return
 }
@@ -340,6 +389,65 @@ func getIndexName(s *sql.DB, schema, table string) (ts []string, err error) {
 		ts = append(ts, name)
 	}
 	return
+}
+
+func columnIsEqual(x, y []column) bool {
+	if len(x) != len(y) {
+		return false
+	}
+
+	for _, col1 := range x {
+		isExist := false
+		for _, col2 := range y {
+			if col2.Name == col1.Name {
+				isExist = true
+				break
+			}
+		}
+
+		if isExist == false {
+			return false
+		}
+	}
+
+	return true
+}
+
+func columnDiff(x, y []column) (x1, x2 []column) {
+	//生成语句
+	//先判断x,y没有的语句
+	for _, col1 := range x {
+		isExist := false
+		for _, col2 := range y {
+			if col1.Name == col2.Name {
+				isExist = true
+				break
+			}
+		}
+
+		if isExist == false {
+			//生成语句
+			x2 = append(x2, col1)
+		}
+	}
+
+	for _, col1 := range y {
+		isExist := false
+		for _, col2 := range x {
+			if col1.Name == col2.Name {
+				isExist = true
+				break
+			}
+		}
+
+		if isExist == false {
+			//生成语句
+			x1 = append(x1, col1)
+		}
+	}
+
+	return
+
 }
 
 func isEqual(x, y []string) bool {
