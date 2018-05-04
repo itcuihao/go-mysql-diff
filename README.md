@@ -1,5 +1,8 @@
 
-# 增加自动生成ALTER TABLE ADD COLUMN AFTER语句
+# go-mysql-diff
+Compare two mysql database triggers, functions, tables, columns and indexing tools
+
+### 增加自动生成ALTER TABLE ADD COLUMN AFTER语句
 ```
 [Info]2018/05/04 16:53:45 ALTER TABLE `oracle_server` ADD COLUMN `threshold_archivelog` int(11) NULL DEFAULT '10' AFTER `alarm_archivelog`;
 
@@ -9,9 +12,6 @@
 
 [Info]2018/05/04 16:53:45 ALTER TABLE `oracle_server` ADD COLUMN `alarm_rman_backupset_job` int(11) NULL DEFAULT '10' AFTER `threshold_flash_recovery_area_usage`;
 ```
-
-# go-mysql-diff
-Compare two mysql database triggers, functions, tables, columns and indexing tools
 
 ### 配置文件利用[toml](https://github.com/toml-lang/toml)
 格式如下：
