@@ -25,6 +25,14 @@ type database struct {
 	Name     string
 }
 
+type column struct {
+	Name       string
+	Type       string
+	IsNullable string
+	Default    interface{}
+	After      string
+}
+
 var (
 	driverName string
 	dbConfig   tomlConfig
@@ -73,7 +81,7 @@ func main() {
 		log.Fatalln("open file error !")
 	}
 	// 创建一个日志对象
-	dLog = log.New(logFile, "[Info]", log.LstdFlags|log.Lshortfile)
+	dLog = log.New(logFile, "[Info]", log.LstdFlags) //|log.Lshortfile)
 	//配置一个日志格式的前缀
 	dLog.SetPrefix("[Info]")
 	//配置log的Flag参数
@@ -181,7 +189,7 @@ func TriggerDiff(db1, db2 *sql.DB, schema1, schema2 string) bool {
 		dLog.Printf("两个数据库不同的触发器,共有%d个，分别是：%s", len(dt), dt)
 		return false
 	}
-	dLog.Printf("两个数据库触发器相同")
+	// dLog.Printf("两个数据库触发器相同")
 	return true
 }
 
@@ -226,7 +234,7 @@ func FunctionDiff(db1, db2 *sql.DB, schema1, schema2 string) bool {
 		dLog.Printf("两个数据库不同的函数,共有%d个，分别是：%s", len(dt), dt)
 		return false
 	}
-	dLog.Printf("两个数据库函数相同")
+	// dLog.Printf("两个数据库函数相同")
 	return true
 }
 
@@ -254,6 +262,29 @@ func getFunctionName(s *sql.DB, schema string) (ts []string, err error) {
 	return
 }
 
+func genAlterSql(t string, col column) string {
+	var after string
+	if col.After != "" {
+		after = fmt.Sprintf(" AFTER `%s`", col.After)
+	}
+
+	var isNull string
+	if col.IsNullable == "YES" {
+		isNull = " NULL"
+	} else {
+		isNull = " NOT NULL"
+	}
+
+	var defaultValue string
+	if col.Default == nil {
+		defaultValue = " DEFAULT NULL"
+	} else if col.Default != "" {
+		defaultValue = fmt.Sprintf(" DEFAULT '%s'", col.Default)
+	}
+
+	return fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` %s%s%s%s;", t, col.Name, col.Type, isNull, defaultValue, after)
+}
+
 // ColumnDiff 对比函数的不同
 func ColumnDiff(db1, db2 *sql.DB, schema1, schema2 string, table []string) {
 	for _, t := range table {
@@ -265,17 +296,28 @@ func ColumnDiff(db1, db2 *sql.DB, schema1, schema2 string, table []string) {
 		if err != nil {
 			dLog.Fatalln(err.Error())
 		}
-		if !isEqual(columnName1, columnName2) {
-			dt := diffName(columnName1, columnName2)
-			dLog.Printf("两个数据库%s表，有不同的列,共有%d个，分别是：%s", t, len(dt), dt)
+		if !columnIsEqual(columnName1, columnName2) {
+			// dt := diffName(columnName1, columnName2)
+			// dLog.Printf("两个数据库%s表，有不同的列,共有%d个，分别是：%s", t, len(dt), dt)
+			col1, col2 := columnDiff(columnName1, columnName2)
+
+			dLog.Printf("%s数据库%s表，列不相同:%d", schema1, t, len(col1))
+			for _, col := range col1 {
+				dLog.Printf(genAlterSql(t, col))
+			}
+
+			dLog.Printf("%s数据库%s表，列不相同:%d", schema2, t, len(col2))
+			for _, col := range col2 {
+				dLog.Printf(genAlterSql(t, col))
+			}
 		} else {
-			dLog.Printf("两个数据库%s表，列相同", t)
+			//dLog.Printf("两个数据库%s表，列相同", t)
 		}
 	}
 }
 
-func getColumnName(s *sql.DB, schema, table string) (ts []string, err error) {
-	stm, perr := s.Prepare("select COLUMN_NAME from information_schema.columns where TABLE_SCHEMA=? and TABLE_NAME=? order by COLUMN_NAME")
+func getColumnName(s *sql.DB, schema, table string) (ts []column, err error) {
+	stm, perr := s.Prepare("select COLUMN_NAME,column_type,column_default,is_nullable from information_schema.columns where TABLE_SCHEMA=? and TABLE_NAME=? order by ordinal_position asc")
 	if perr != nil {
 		err = perr
 		return
@@ -288,12 +330,33 @@ func getColumnName(s *sql.DB, schema, table string) (ts []string, err error) {
 	}
 	defer q.Close()
 
+	ts = make([]column, 0)
+
+	var after string
 	for q.Next() {
-		var name string
-		if err := q.Scan(&name); err != nil {
+		var column_name string
+		var column_type string
+		var column_default interface{}
+		var is_nullable string
+
+		if err := q.Scan(&column_name, &column_type, &column_default, &is_nullable); err != nil {
 			log.Fatal(err)
 		}
-		ts = append(ts, name)
+
+		col := column{}
+		col.Name = column_name
+		col.Type = column_type
+		col.IsNullable = is_nullable
+		col.Default = column_default
+
+		if after == "" {
+			col.After = ""
+		} else {
+			col.After = after
+		}
+		after = col.Name
+
+		ts = append(ts, col)
 	}
 	return
 }
@@ -313,7 +376,7 @@ func IndexDiff(db1, db2 *sql.DB, schema1, schema2 string, table []string) {
 			dt := diffName(indexName1, indexName2)
 			dLog.Printf("两个数据库%s表，有不同的索引,共有%d个，分别是：%s", t, len(dt), dt)
 		} else {
-			dLog.Printf("两个数据库%s表，索引相同", t)
+			// dLog.Printf("两个数据库%s表，索引相同", t)
 		}
 	}
 }
@@ -340,6 +403,65 @@ func getIndexName(s *sql.DB, schema, table string) (ts []string, err error) {
 		ts = append(ts, name)
 	}
 	return
+}
+
+func columnIsEqual(x, y []column) bool {
+	if len(x) != len(y) {
+		return false
+	}
+
+	for _, col1 := range x {
+		isExist := false
+		for _, col2 := range y {
+			if col2.Name == col1.Name {
+				isExist = true
+				break
+			}
+		}
+
+		if isExist == false {
+			return false
+		}
+	}
+
+	return true
+}
+
+func columnDiff(x, y []column) (x1, x2 []column) {
+	//生成语句
+	//先判断x,y没有的语句
+	for _, col1 := range x {
+		isExist := false
+		for _, col2 := range y {
+			if col1.Name == col2.Name {
+				isExist = true
+				break
+			}
+		}
+
+		if isExist == false {
+			//生成语句
+			x2 = append(x2, col1)
+		}
+	}
+
+	for _, col1 := range y {
+		isExist := false
+		for _, col2 := range x {
+			if col1.Name == col2.Name {
+				isExist = true
+				break
+			}
+		}
+
+		if isExist == false {
+			//生成语句
+			x1 = append(x1, col1)
+		}
+	}
+
+	return
+
 }
 
 func isEqual(x, y []string) bool {
