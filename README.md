@@ -1,3 +1,5 @@
+#增加自动生成ALTER TABLE ADD COLUMN AFTER语句
+
 # go-mysql-diff
 Compare two mysql database triggers, functions, tables, columns and indexing tools
 
